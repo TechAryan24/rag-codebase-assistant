@@ -1,4 +1,3 @@
-import React from 'react';
 import { FileCode, Database, X, Terminal, GitCommit, FlaskConical } from 'lucide-react'; 
 import { useChatStore } from '../store/chatStore';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
