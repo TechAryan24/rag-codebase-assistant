@@ -26,12 +26,21 @@ const IngestionModal = () => {
     setLogs([]);
     setProgress(0);
 
-    // Connect to WebSocket
-    // NOTE: Ensure port matches your backend (default 8000)
-    const ws = new WebSocket("ws://localhost:8000/ws/ingest");
+    // 🔥 FIX: Dynamic WebSocket URL generation
+    // 1. Get the HTTP URL from environment (or default to localhost)
+    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+    
+    // 2. Convert 'http' -> 'ws' and 'https' -> 'wss'
+    const wsUrl = apiUrl.replace(/^http/, "ws");
+    
+    // 3. Connect using the correct URL
+    console.log(`🔌 Connecting to WebSocket: ${wsUrl}/ws/ingest`);
+    const ws = new WebSocket(`${wsUrl}/ws/ingest`);
+    
     socketRef.current = ws;
 
     ws.onopen = () => {
+      console.log("✅ WebSocket Connected!");
       ws.send(JSON.stringify({ path }));
     };
 
@@ -45,7 +54,6 @@ const IngestionModal = () => {
       } else if (data.status === "processing_file") {
         // Add file to log
         setLogs((prev) => {
-          // FIX: Explicitly cast 'done' as const so TS knows it matches LogEntry type
           const newEntry: LogEntry = { file: data.file, status: "done" };
           const newLogs = [...prev, newEntry];
 
@@ -71,8 +79,12 @@ const IngestionModal = () => {
     };
 
     ws.onerror = (error) => {
-      console.error("WebSocket Error", error);
-      setCurrentStatus("Connection Error");
+      console.error("❌ WebSocket Error:", error);
+      setCurrentStatus("Connection Error: Could not reach server.");
+    };
+    
+    ws.onclose = () => {
+        console.log("🔌 WebSocket Disconnected");
     };
   };
 
