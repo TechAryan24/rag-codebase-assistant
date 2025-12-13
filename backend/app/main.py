@@ -10,6 +10,7 @@ origins = [
     "http://localhost:5173",  # Vite Localhost
     "http://127.0.0.1:5173",  # IP variation
     "http://localhost:3000",  # React default (just in case)
+    "https://codemind-lovat.vercel.app"
 ]
 
 app.add_middleware(
