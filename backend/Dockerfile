@@ -1,5 +1,5 @@
 # 1. Use a lightweight Python version (Linux-based)
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # 2. Set the folder inside the server where your app will live
 WORKDIR /code
