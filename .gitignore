@@ -1,0 +1,14 @@
+# Backend ignores
+backend/venv/
+backend/__pycache__/
+backend/*.db
+backend/.env
+
+# Temporary cloned repositories
+backend/temp_cloned_repo/
+
+
+# Frontend ignores
+frontend/node_modules/
+frontend/dist/
+frontend/.env
