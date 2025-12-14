@@ -4,6 +4,7 @@ from typing import Optional, List, Dict, Any
 import os
 import uuid
 import asyncio
+from starlette.websockets import WebSocketDisconnect  # <--- Added Import
 
 # --- Core Logic Imports ---
 from app.core.scanner import scan_directory
@@ -105,13 +106,22 @@ async def websocket_ingest(websocket: WebSocket):
             # Small sleep to allow the event loop to handle other requests
             await asyncio.sleep(0.01) 
             
+    except WebSocketDisconnect:
+        # Client disconnected normally, just stop processing
+        print("ℹ️ Client disconnected from ingestion stream.")
     except Exception as e:
         print(f"WS Error: {e}")
-        await websocket.send_json({"status": "error", "message": str(e)})
+        # Only try to send error if connection is arguably still open
+        try:
+            await websocket.send_json({"status": "error", "message": str(e)})
+        except RuntimeError:
+            # Connection already closed, ignore
+            pass
     finally:
         try:
             await websocket.close()
-        except:
+        except RuntimeError:
+            # Already closed
             pass
 
 # ==========================================
@@ -214,16 +224,33 @@ def get_chat_messages(session_id: str):
 # 4. FILE SYSTEM
 # ==========================================
 
+# Ensure this matches the directory used in your ingestion.py
+TEMP_REPO_DIR = os.path.join(os.getcwd(), "temp_cloned_repo")
+
 @router.get("/files")
 def get_file_structure(path: str):
-    if not os.path.exists(path):
+    # ---------------------------------------------------------
+    # 1. HANDLE GITHUB URLS
+    # If the path is a URL, we look into the temp directory
+    # where the repo was cloned, instead of looking for the URL on disk.
+    # ---------------------------------------------------------
+    if path.startswith("http") or path.startswith("git@"):
+        target_path = TEMP_REPO_DIR
+    else:
+        target_path = path
+
+    # 2. Check if the target path actually exists
+    if not os.path.exists(target_path):
          return []
 
+    # 3. Recursive function to build the tree
     def build_tree(dir_path):
         tree = []
         try:
+            # Sort items to keep folders and files organized
             items = sorted(os.listdir(dir_path))
             for item in items:
+                # Skip hidden files and standard ignore folders
                 if item.startswith('.') or item in ["__pycache__", "node_modules", "venv", ".git"]:
                     continue
                     
@@ -233,7 +260,8 @@ def get_file_structure(path: str):
                 node = {
                     "name": item,
                     "type": "folder" if is_dir else "file",
-                    "path": full_path
+                    # We send the full server path so the frontend can request file content later
+                    "path": full_path 
                 }
                 
                 if is_dir:
@@ -241,7 +269,11 @@ def get_file_structure(path: str):
                     
                 tree.append(node)
         except PermissionError:
+            # Skip folders we don't have permission to access
             pass
+        except Exception as e:
+            print(f"Error scanning directory {dir_path}: {e}")
+            
         return tree
 
-    return build_tree(path)
+    return build_tree(target_path)

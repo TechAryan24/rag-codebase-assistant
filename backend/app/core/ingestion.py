@@ -14,12 +14,13 @@ import numpy as np
 TEMP_REPO_DIR = os.path.join(os.getcwd(), "temp_cloned_repo")
 
 # ----------------------------
-# 1. GIT HISTORY PROCESSING
+# 1. GIT HISTORY PROCESSING (GENERATOR)
 # ----------------------------
-def process_git_history(repo_path: str, start_id: int, limit: int = 50):
-    # This logic remains largely the same, but we won't yield specific commits 
-    # to the UI to keep the UI clean, or we could add a yield here if desired.
-    # For now, we'll keep it silent/internal.
+def process_git_history_generator(repo_path: str, start_id: int, limit: int = 50):
+    """
+    Yields progress updates so the WebSocket doesn't timeout during heavy git processing.
+    Yields final ID at the end.
+    """
     print("⏳ Processing Git Commit History...")
     current_id = start_id
     
@@ -27,16 +28,30 @@ def process_git_history(repo_path: str, start_id: int, limit: int = 50):
         repo = git.Repo(repo_path)
     except git.exc.InvalidGitRepositoryError:
         print("⚠ Not a valid git repository. Skipping history.")
-        return current_id
+        yield current_id # Return current ID as is
+        return
 
     vectors_buffer = []
     chunks_buffer = []
     metadata_buffer = []
     
-    for commit in repo.iter_commits(max_count=limit):
+    # Iterate commits
+    commits = list(repo.iter_commits(max_count=limit))
+    total_commits = len(commits)
+
+    for i, commit in enumerate(commits):
         try:
-            commit_date = datetime.fromtimestamp(commit.committed_date).strftime('%Y-%m-%d')
-            content_text = f"COMMIT: {commit.hexsha}\nMSG: {commit.message.strip()}"
+            # 1. Extract Author and Time (The fix you requested)
+            author_name = commit.author.name
+            date_str = datetime.fromtimestamp(commit.committed_date).strftime('%Y-%m-%d %H:%M:%S')
+
+            # 2. Add them to the content text
+            content_text = (
+                f"COMMIT: {commit.hexsha}\n"
+                f"AUTHOR: {author_name}\n"
+                f"DATE: {date_str}\n"
+                f"MSG: {commit.message.strip()}"
+            )
 
             vector = embedder.embed_text(content_text)
             vectors_buffer.append(vector)
@@ -59,14 +74,23 @@ def process_git_history(repo_path: str, start_id: int, limit: int = 50):
             chunks_buffer.append(chunk)
             current_id += 1
             
-        except Exception:
+            # --- CRITICAL FIX: Yield progress to keep WebSocket alive ---
+            yield {
+                "status": "processing_git", 
+                "message": f"Processing commit {i+1}/{total_commits}..."
+            }
+            
+        except Exception as e:
+            print(f"Error processing commit: {e}")
             continue
 
     if vectors_buffer:
         _flush_buffers(vectors_buffer, chunks_buffer, metadata_buffer)
         print(f"✅ Ingested {len(chunks_buffer)} git commits.")
 
-    return current_id
+    # Yield the final ID so the main function can update its counter
+    yield current_id
+
 
 # ----------------------------
 # CHUNK FALLBACK
@@ -97,7 +121,11 @@ def ingest_codebase_generator(input_path: str):
             def on_rm_error(func, path, exc_info):
                 os.chmod(path, 0o777)
                 func(path)
-            shutil.rmtree(TEMP_REPO_DIR, onerror=on_rm_error)
+            try:
+                shutil.rmtree(TEMP_REPO_DIR, onerror=on_rm_error)
+            except Exception:
+                pass # Ignore cleanup errors
+                
         try:
             git.Repo.clone_from(input_path, TEMP_REPO_DIR)
             target_path = TEMP_REPO_DIR
@@ -120,9 +148,17 @@ def ingest_codebase_generator(input_path: str):
 
     global_id_counter = 0
     
-    # Process Git
-    yield {"status": "processing_git", "message": "Indexing Git History..."}
-    global_id_counter = process_git_history(target_path, start_id=global_id_counter)
+    # 2. Process Git (Consuming the new Generator)
+    # We iterate over the git processor so it keeps yielding "alive" messages
+    git_processor = process_git_history_generator(target_path, start_id=global_id_counter)
+    
+    for update in git_processor:
+        if isinstance(update, int):
+            # If it's an int, it's the final ID count
+            global_id_counter = update
+        else:
+            # If it's a dict, it's a status message for the UI
+            yield update
 
     processed_count = 0
     vectors_buffer = []
@@ -130,6 +166,8 @@ def ingest_codebase_generator(input_path: str):
     metadata_buffer = []
 
     # Get total file count for progress bar
+    # (Wrapped in list to force immediate execution, but might block on huge repos. 
+    # Usually fast enough for <10k files)
     all_files = list(scan_directory(target_path))
     total_files = len(all_files)
     
@@ -200,9 +238,7 @@ def ingest_codebase_generator(input_path: str):
     if vectors_buffer:
         _flush_buffers(vectors_buffer, chunks_buffer, metadata_buffer)
 
-    # ✅ PRINT FINAL FILE COUNT HERE
     print(f"✅ Total files processed: {processed_count}")
-
     yield {"status": "complete", "message": "Ingestion Complete!", "progress": 100}
 
 
@@ -214,7 +250,7 @@ def ingest_codebase(input_path: str):
     Consumes the generator purely for blocking calls (old API support).
     """
     for update in ingest_codebase_generator(input_path):
-        print(f"INTERNAL LOG: {update}")
+        pass # Just consume the generator to make it run
 
 def _flush_buffers(vectors, chunks, metadatas):
     if not vectors:
