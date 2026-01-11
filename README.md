@@ -80,5 +80,5 @@ Follow these steps to set up CodeMind AI locally.
 
 ### 📥 1. Clone Repository
 ```bash
-git clone [https://github.com/yourusername/codemind-ai.git](https://github.com/yourusername/codemind-ai.git)
-cd codemind-ai
+git clone [https://github.com/TechAryan24/rag-codebase-assistant.git](https://github.com/TechAryan24/rag-codebase-assistant.git)
+cd rag-codebase-assistant
