@@ -56,27 +56,6 @@ Unlike generic RAG tools that treat code as plain text, CodeMind leverages **AST
 * Git
 * API Keys for: **Google Gemini**, **Pinecone**, and **Supabase**.
 
-###🖥️ Application Screenshots
-
-* **Visual overview of CodeMind AI user experience**
-
-##🏠 Homepage
-<img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/af26d866-5f8d-410b-8e9d-15f1f1b3346d" />
-<img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/a2fbcfe8-6b34-4fc3-bc65-a9304b29961f" />
-
-##🔐 Sign Up
-![Image](https://github.com/user-attachments/assets/54d1b48e-109f-482d-b994-29d43ea55d1a)
-
-##🔑 Sign In
-<img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/4fa67ae9-4689-47c3-990c-d87f9aeeec4e" />
-
-##📂 Repository Ingestion
-![Image](https://github.com/user-attachments/assets/d9cec5e4-62cd-4803-9e79-10fc6629c692)
-![Image](https://github.com/user-attachments/assets/0703f128-0988-47ff-9cf4-ac6672fedd7b)
-
-##💬 Chat Interface
-![Image](https://github.com/user-attachments/assets/42a244f9-e3ae-4275-9ec0-802944da93d1)
-
 
 ### 1. Clone the Repository
 ```bash
