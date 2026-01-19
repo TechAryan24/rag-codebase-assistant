@@ -7,19 +7,22 @@ app = FastAPI(title="Codebase Assistant API")
 
 # --- CORS IS CRITICAL FOR LINKING FRONTEND & BACKEND ---
 origins = [
-    "http://localhost:5173",  # Vite Localhost
-    "http://127.0.0.1:5173",  # IP variation
-    "http://localhost:3000",  # React default (just in case)
-    "https://codemind-lovat.vercel.app"
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "https://codemind-lovat.vercel.app",
+    "https://codemind-f5wyhklv7-aryanbhekare05-gmailcoms-projects.vercel.app",
 ]
+
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
-    allow_methods=["*"],  # Allow POST, GET, OPTIONS
+    allow_methods=["*"],
     allow_headers=["*"],
 )
+
 # -------------------------------------------------------
 
 # 🔥 CRITICAL: Initialize Database on Startup
